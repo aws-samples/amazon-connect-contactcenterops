@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
   Amazon Connect instance CloudFormation template.
-  Creates an Amazon Connect Instance, Hours of Operation.
+  Creates an Amazon Connect Instance, Hours of Operation, Contact Flow.
   Creates an Agent user for calls to be directed to.
   Password for the Agent is stored as a Secure String in AWS Systems Manager Parameter Store.
 
@@ -458,3 +458,187 @@ Resources:
       RoutingProfileArn: !GetAtt CustomResourceGetRoutingProfile.RoutingProfileArn
       SecurityProfileArns: [!GetAtt CustomResourceGetSecurityProfileAgent.SecurityProfileArn]
       Password: !GetAtt CustomResourceGenerateRandomStringAgent.RandomString
+
+  Flow:
+    Type: AWS::Connect::ContactFlow
+    Properties:
+      Name: AnyCompany Main Flow
+      Description: flow created using cfn
+      InstanceArn: !GetAtt AmazonConnectInstance.Arn
+      Type: CONTACT_FLOW
+      Content: !Sub |
+        {
+          "Version": "2019-10-30",
+          "StartAction": "8a1b1f06-0b60-40a7-9cee-77b1b8a93634",
+          "Metadata": {
+            "entryPointPosition": {
+              "x": -158.4,
+              "y": 99.2
+            },
+            "ActionMetadata": {
+              "6737f241-656c-4ab9-b5ce-781ca4ea7d58": {
+                "position": {
+                  "x": 208.8,
+                  "y": 351.20000000000005
+                }
+              },
+              "8a1b1f06-0b60-40a7-9cee-77b1b8a93634": {
+                "position": {
+                  "x": -37.6,
+                  "y": 214.4
+                },
+                "parameters": {
+                  "HoursOfOperationId": {
+                    "displayName": "HoursOfOperation"
+                  }
+                },
+                "Hours": {
+                  "id": "${HoursOfOperation.HoursOfOperationArn}",
+                  "text": "HoursOfOperation"
+                }
+              },
+              "eb8dce1a-15ee-4c37-a795-d812ca64e70c": {
+                "position": {
+                  "x": 919.2,
+                  "y": 237.60000000000002
+                }
+              },
+              "5ea8ece2-ad30-43c7-a758-64ae2bd33dfc": {
+                "position": {
+                  "x": 215.20000000000002,
+                  "y": 116
+                }
+              },
+              "06d0e1d7-5c1b-41ae-b401-052ed7283f97": {
+                "position": {
+                  "x": 673.6,
+                  "y": 115.2
+                }
+              },
+              "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae": {
+                "position": {
+                  "x": 441.6,
+                  "y": 115.2
+                },
+                "parameters": {
+                  "AgentId": {
+                    "displayName": "demouser (demo user)"
+                  }
+                },
+                "queue": {
+                  "text": "demouser (demo user)"
+                }
+              }
+            }
+          },
+          "Actions": [
+            {
+              "Parameters": {
+                "Text": "Sorry, we are currently closed. Please call back during our operating hours. Our operating hours are from 9.30am to 7pm from Mondays to Fridays."
+              },
+              "Identifier": "6737f241-656c-4ab9-b5ce-781ca4ea7d58",
+              "Type": "MessageParticipant",
+              "Transitions": {
+                "NextAction": "eb8dce1a-15ee-4c37-a795-d812ca64e70c",
+                "Errors": [
+                  {
+                    "NextAction": "eb8dce1a-15ee-4c37-a795-d812ca64e70c",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            },
+            {
+              "Parameters": {
+                "HoursOfOperationId": "${HoursOfOperation.HoursOfOperationArn}"
+              },
+              "Identifier": "8a1b1f06-0b60-40a7-9cee-77b1b8a93634",
+              "Type": "CheckHoursOfOperation",
+              "Transitions": {
+                "NextAction": "6737f241-656c-4ab9-b5ce-781ca4ea7d58",
+                "Conditions": [
+                  {
+                    "NextAction": "5ea8ece2-ad30-43c7-a758-64ae2bd33dfc",
+                    "Condition": {
+                      "Operator": "Equals",
+                      "Operands": [
+                        "True"
+                      ]
+                    }
+                  },
+                  {
+                    "NextAction": "6737f241-656c-4ab9-b5ce-781ca4ea7d58",
+                    "Condition": {
+                      "Operator": "Equals",
+                      "Operands": [
+                        "False"
+                      ]
+                    }
+                  }
+                ],
+                "Errors": [
+                  {
+                    "NextAction": "6737f241-656c-4ab9-b5ce-781ca4ea7d58",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            },
+            {
+              "Parameters": {},
+              "Identifier": "eb8dce1a-15ee-4c37-a795-d812ca64e70c",
+              "Type": "DisconnectParticipant",
+              "Transitions": {}
+            },
+            {
+              "Parameters": {
+                "Text": "Welcome to AnyCompany hotline. Please hold while we direct you to an agent."
+              },
+              "Identifier": "5ea8ece2-ad30-43c7-a758-64ae2bd33dfc",
+              "Type": "MessageParticipant",
+              "Transitions": {
+                "NextAction": "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae",
+                "Errors": [
+                  {
+                    "NextAction": "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            },
+            {
+              "Parameters": {},
+              "Identifier": "06d0e1d7-5c1b-41ae-b401-052ed7283f97",
+              "Type": "TransferContactToQueue",
+              "Transitions": {
+                "NextAction": "eb8dce1a-15ee-4c37-a795-d812ca64e70c",
+                "Errors": [
+                  {
+                    "NextAction": "eb8dce1a-15ee-4c37-a795-d812ca64e70c",
+                    "ErrorType": "QueueAtCapacity"
+                  },
+                  {
+                    "NextAction": "eb8dce1a-15ee-4c37-a795-d812ca64e70c",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            },
+            {
+              "Parameters": {
+                "AgentId": "${ConnectUserAgent.UserArn}"
+              },
+              "Identifier": "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae",
+              "Type": "UpdateContactTargetQueue",
+              "Transitions": {
+                "NextAction": "06d0e1d7-5c1b-41ae-b401-052ed7283f97",
+                "Errors": [
+                  {
+                    "NextAction": "06d0e1d7-5c1b-41ae-b401-052ed7283f97",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            }
+          ]
+        }
