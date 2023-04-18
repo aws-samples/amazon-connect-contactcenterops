@@ -31,45 +31,45 @@ Resources:
   HoursOfOperation:
     Type: AWS::Connect::HoursOfOperation
     Properties:
-      Name: Office Hours
-      Description: Office Hours
+      Name: New Hours
+      Description: New Hours
       InstanceArn: !GetAtt AmazonConnectInstance.Arn
       TimeZone: Asia/Singapore
       Config:
         - Day: MONDAY
           EndTime:
-            Hours: 19
+            Hours: 18
             Minutes: 0
           StartTime:
-            Hours: 9
+            Hours: 8
             Minutes: 30
         - Day: TUESDAY
           EndTime:
-            Hours: 19
+            Hours: 18
             Minutes: 0
           StartTime:
-            Hours: 9
+            Hours: 8
             Minutes: 30
         - Day: WEDNESDAY
           EndTime:
-            Hours: 19
+            Hours: 18
             Minutes: 0
           StartTime:
-            Hours: 9
+            Hours: 8
             Minutes: 30
         - Day: THURSDAY
           EndTime:
-            Hours: 19
+            Hours: 18
             Minutes: 0
           StartTime:
-            Hours: 9
+            Hours: 8
             Minutes: 30
         - Day: FRIDAY
           EndTime:
-            Hours: 19
+            Hours: 18
             Minutes: 0
           StartTime:
-            Hours: 9
+            Hours: 8
             Minutes: 30
 
   CustomResourceGetSecurityProfileAgent:
@@ -611,20 +611,20 @@ Resources:
           "StartAction": "8a1b1f06-0b60-40a7-9cee-77b1b8a93634",
           "Metadata": {
             "entryPointPosition": {
-              "x": -158.4,
-              "y": 99.2
+              "x": -408,
+              "y": 171.20000000000002
             },
             "ActionMetadata": {
               "6737f241-656c-4ab9-b5ce-781ca4ea7d58": {
                 "position": {
-                  "x": 208.8,
-                  "y": 351.20000000000005
+                  "x": -23.200000000000003,
+                  "y": 548
                 }
               },
               "8a1b1f06-0b60-40a7-9cee-77b1b8a93634": {
                 "position": {
-                  "x": -37.6,
-                  "y": 214.4
+                  "x": -285.6,
+                  "y": 179.20000000000002
                 },
                 "parameters": {
                   "HoursOfOperationId": {
@@ -638,26 +638,38 @@ Resources:
               },
               "eb8dce1a-15ee-4c37-a795-d812ca64e70c": {
                 "position": {
-                  "x": 919.2,
-                  "y": 237.60000000000002
+                  "x": 944,
+                  "y": 336
                 }
               },
               "5ea8ece2-ad30-43c7-a758-64ae2bd33dfc": {
                 "position": {
-                  "x": 215.20000000000002,
-                  "y": 116
+                  "x": 8.8,
+                  "y": 194.4
                 }
               },
               "06d0e1d7-5c1b-41ae-b401-052ed7283f97": {
                 "position": {
-                  "x": 673.6,
-                  "y": 115.2
+                  "x": 738.4000000000001,
+                  "y": 271.2
                 }
+              },
+              "9bf359a2-72d5-4d9c-a26b-c58e97e1620d": {
+                "position": {
+                  "x": 251.20000000000002,
+                  "y": 156
+                },
+                "conditionMetadata": [
+                  {
+                    "id": "156ff73f-d4e6-4ba1-a364-0fc264860ea5",
+                    "value": "0"
+                  }
+                ]
               },
               "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae": {
                 "position": {
-                  "x": 441.6,
-                  "y": 115.2
+                  "x": 500,
+                  "y": 189.60000000000002
                 },
                 "parameters": {
                   "AgentId": {
@@ -667,13 +679,19 @@ Resources:
                 "queue": {
                   "text": "demouser (demo user)"
                 }
+              },
+              "52bf144d-828c-4cd1-8140-e1c5a8049d1c": {
+                "position": {
+                  "x": 505.6,
+                  "y": 446.40000000000003
+                }
               }
             }
           },
           "Actions": [
             {
               "Parameters": {
-                "Text": "Sorry, we are currently closed. Please call back during our operating hours. Our operating hours are from 9.30am to 7pm from Mondays to Fridays."
+                "Text": "Sorry, we are currently closed. Please call back during our operating hours. Our new operating hours are from 8.30am to 6pm from Mondays to Fridays."
               },
               "Identifier": "6737f241-656c-4ab9-b5ce-781ca4ea7d58",
               "Type": "MessageParticipant",
@@ -731,15 +749,15 @@ Resources:
             },
             {
               "Parameters": {
-                "Text": "Welcome to AnyCompany hotline. Please hold while we direct you to an agent."
+                "Text": "Welcome to AnyCompany hotline."
               },
               "Identifier": "5ea8ece2-ad30-43c7-a758-64ae2bd33dfc",
               "Type": "MessageParticipant",
               "Transitions": {
-                "NextAction": "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae",
+                "NextAction": "9bf359a2-72d5-4d9c-a26b-c58e97e1620d",
                 "Errors": [
                   {
-                    "NextAction": "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae",
+                    "NextAction": "9bf359a2-72d5-4d9c-a26b-c58e97e1620d",
                     "ErrorType": "NoMatchingError"
                   }
                 ]
@@ -758,6 +776,59 @@ Resources:
                   },
                   {
                     "NextAction": "eb8dce1a-15ee-4c37-a795-d812ca64e70c",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            },
+            {
+              "Parameters": {
+                "StoreInput": "False",
+                "InputTimeLimitSeconds": "5",
+                "Text": "Our new operating hours are from 8.30am to 6pm from Mondays to Fridays.\n\nTo speak to a customer service officer, Press 0."
+              },
+              "Identifier": "9bf359a2-72d5-4d9c-a26b-c58e97e1620d",
+              "Type": "GetParticipantInput",
+              "Transitions": {
+                "NextAction": "52bf144d-828c-4cd1-8140-e1c5a8049d1c",
+                "Conditions": [
+                  {
+                    "NextAction": "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae",
+                    "Condition": {
+                      "Operator": "Equals",
+                      "Operands": [
+                        "0"
+                      ]
+                    }
+                  }
+                ],
+                "Errors": [
+                  {
+                    "NextAction": "52bf144d-828c-4cd1-8140-e1c5a8049d1c",
+                    "ErrorType": "InputTimeLimitExceeded"
+                  },
+                  {
+                    "NextAction": "52bf144d-828c-4cd1-8140-e1c5a8049d1c",
+                    "ErrorType": "NoMatchingCondition"
+                  },
+                  {
+                    "NextAction": "52bf144d-828c-4cd1-8140-e1c5a8049d1c",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            },
+            {
+              "Parameters": {
+                "Text": "Sorry, I did not receive a response."
+              },
+              "Identifier": "52bf144d-828c-4cd1-8140-e1c5a8049d1c",
+              "Type": "MessageParticipant",
+              "Transitions": {
+                "NextAction": "9bf359a2-72d5-4d9c-a26b-c58e97e1620d",
+                "Errors": [
+                  {
+                    "NextAction": "9bf359a2-72d5-4d9c-a26b-c58e97e1620d",
                     "ErrorType": "NoMatchingError"
                   }
                 ]
