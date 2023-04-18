@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Amazon Connect instance CloudFormation template.
+  Creates an Amazon Connect Instance
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment to deploy into
+    AllowedValues: [dev, uat, prod]
+
+Resources:
+  AmazonConnectInstance:
+    Type: AWS::Connect::Instance
+    Properties:
+      Attributes:
+        ContactflowLogs: true
+        InboundCalls: true
+        OutboundCalls: false
+      IdentityManagementType: CONNECT_MANAGED
+      InstanceAlias: !Join ['-', [!Join ['-', [summit-demo, !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]], !Ref Environment]]
