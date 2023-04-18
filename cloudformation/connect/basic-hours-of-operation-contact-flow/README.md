@@ -96,6 +96,67 @@ aws cloudformation deploy \
 
     ![Phone Number](./assets/original/08-phone-number.png)
 
+## Deploying the second iteration of the Amazon Connect architecture
+
+The [contact-center-update.yaml CloudFormation template](./contact-center-update.yaml) deploys the same resources as the resources in the first iteration. The updates would be to existing resources, namely, the hours of operation resource and the contact flow resource. These are highlighted in the following architecture:
+
+![Second iteration of the Amazon Connect infrastructure](./assets/updated/01-architecture-diagram.png)
+
+Code changes can be found by doing a diff:
+
+1. Hours of operation change
+
+  ![Hours of operation code change](./assets/updated/02-hours-of-operation-code.png)
+
+2. Snippet of a part of the Contact flow change
+
+  ![Contact flow code change](./assets/updated/03-contact-flow-code.png)
+
+### Deployment Steps
+
+The template that deploys the second iteration of the Amazon Connect deployment can be found at [contact-center-update.yaml](./contact-center-update.yaml).
+
+If you're using the AWS Console, follow the instructions at [AWS CloudFormation documentation: Creating a stack on the AWS CloudFormation console](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-create-stack.html).
+
+If you're using the AWS CLI, follow the instructions at [AWS CloudFormation documentation: Using the AWS Command Line Interface](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-using-cli.html). For a sample command, run the following, replacing the parameters accordingly. You can also override additional parameters.
+
+```bash
+aws cloudformation deploy \
+  --template-file ./contact-center-update.yaml \
+  --stack-name amazon-connect-demo \
+  --capabilities CAPABILITY_IAM
+```
+
+### Testing the solution
+
+1. Retrieve the Admin credentials from Systems Manager Parameter Store. Choose `amazon-connect-temp-Admin-password`
+
+    ![Parameter Store](./assets/original/02-parameter-store.png)
+
+2. Choose `Show` and record the password to be used to log in to Amazon Connect.
+
+    ![Show password](./assets/original/03-admin-password-param-show.png)
+
+3. Navigate to the Amazon Connect console and select the URL under `Access URL`.
+
+    ![Amazon Connect console](./assets/original/04-amazon-connect-console.png)
+
+4. For `Username`, enter `adminuser` and for password, enter the password retrieved from Step 2.
+
+    ![Admin user log in](./assets/original/05-adminuser-login.png)
+
+5. This opens up the Amazon Connect home page. Navigate to the Hours of operation page. The hours of operation page can also be found at `<your-access-url>/operating-hours`. Then choose `New Hours`. View the updated set of office hours.
+
+    ![Updated hours of operation](./assets/updated/04-hours-of-operation.png)
+
+6. Navigate to the Contact Flow page. The contact flow page can also be found at `<your-access-url>/contact-flows`. Then choose `AnyCompany Main Flow`. View the original contact flow.
+
+    ![Updated contact flow](./assets/updated/05-contact-flow.png)
+
+7. Navigate to the Manage phone numbers page. The Manage phone numbers page can also be found at `<your-access-url>/numbers`. You may dial this phone number to test the contact flow. Before testing, please refer to the [Amazon Connect Pricing documentation](https://aws.amazon.com/connect/pricing/) to understand any potential costs with dialing.
+
+    ![Phone Number](./assets/original/08-phone-number.png)
+
 ## Clean up
 
 Once you're done, you can delete the solution by navigating to the [AWS CloudFormation console](https://console.aws.amazon.com/cloudformation/home?#/stacks/), selecting the stack and choosing `Delete`.
