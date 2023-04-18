@@ -470,6 +470,129 @@ Resources:
         - Key: Name
           Value: basicPhoneNumber
 
+  CustomResourceAssociatePhoneNumberToContactFlow:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionAssociatePhoneNumberToContactFlow.Arn
+
+  LambdaFunctionAssociatePhoneNumberToContactFlow:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Permission to write to CloudWatch logs is part of the managed policy AWSLambdaBasicExecutionRole
+          - id: W89
+            reason: Lambda function does not interact with resources in the VPC and does not handle sensitive data
+          - id: W92
+            reason: This lambda function does not require ReservedConcurrentExecutions
+    Properties:
+      Handler: index.lambda_handler
+      Description: >
+        Associate phone number to contact flow
+      Role: !GetAtt AssociatePhoneNumberToContactFlowRole.Arn
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 30
+      Layers:
+      - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:boto3:1
+      - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:cfnresponse:1
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+          INSTANCE_ID: !GetAtt AmazonConnectInstance.Id
+          PHONE_NUMBER_ID: !Select [1, !Split ['/', !Ref PhoneNumber]]
+          CONTACT_FLOW_ID: !Select [3, !Split ['/', !Ref Flow]]
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          import os
+          import cfnresponse
+
+          client = boto3.client('connect')
+
+          LOG_LEVEL = os.getenv('LOG_LEVEL')
+          INSTANCE_ID = os.getenv('INSTANCE_ID')
+          PHONE_NUMBER_ID = os.getenv('PHONE_NUMBER_ID')
+          CONTACT_FLOW_ID = os.getenv('CONTACT_FLOW_ID')
+
+          def lambda_handler(event, context):
+            global log_level
+            log_level = str(LOG_LEVEL).upper()
+            if log_level not in { 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' }:
+              log_level = 'ERROR'
+            logging.getLogger().setLevel(log_level)
+
+            logging.info(f'Event: {event}')
+
+            request_type = event['RequestType']
+
+            if request_type == 'Delete':
+              try:
+                response = client.disassociate_phone_number_contact_flow(
+                  InstanceId=INSTANCE_ID,
+                  PhoneNumberId=PHONE_NUMBER_ID
+                )
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                return
+              except Exception as e:
+                logging.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                return
+
+            if request_type in {'Create', 'Update'}:
+              try:
+                response = client.associate_phone_number_contact_flow(
+                  InstanceId=INSTANCE_ID,
+                  PhoneNumberId=PHONE_NUMBER_ID,
+                  ContactFlowId=CONTACT_FLOW_ID
+                )
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                return
+              except Exception as e:
+                logging.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                return
+
+  AssociatePhoneNumberToContactFlowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: associatePhoneNumberContactFlow
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - connect:AssociatePhoneNumberContactFlow
+              Resource:
+              - !Sub arn:${AWS::Partition}:connect:${AWS::Region}:${AWS::AccountId}:instance/${AmazonConnectInstance.Id}/contact-flow*
+              - !Sub arn:${AWS::Partition}:connect:${AWS::Region}:${AWS::AccountId}:phone-number*
+              Condition:
+                StringEquals:
+                  connect:InstanceId: !GetAtt AmazonConnectInstance.Id
+            - Effect: Allow
+              Action:
+              - connect:DisassociatePhoneNumberContactFlow
+              Resource:
+              - !Sub arn:${AWS::Partition}:connect:${AWS::Region}:${AWS::AccountId}:phone-number*
+              Condition:
+                StringEquals:
+                  connect:InstanceId: !GetAtt AmazonConnectInstance.Id
+
   Flow:
     Type: AWS::Connect::ContactFlow
     Properties:
