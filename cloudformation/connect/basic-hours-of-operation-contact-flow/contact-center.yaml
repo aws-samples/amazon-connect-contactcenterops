@@ -459,6 +459,17 @@ Resources:
       SecurityProfileArns: [!GetAtt CustomResourceGetSecurityProfileAgent.SecurityProfileArn]
       Password: !GetAtt CustomResourceGenerateRandomStringAgent.RandomString
 
+  PhoneNumber:
+    Type: AWS::Connect::PhoneNumber
+    Properties:
+      TargetArn: !GetAtt AmazonConnectInstance.Arn
+      Description: AnyCompany Phone Number
+      Type: DID
+      CountryCode: US
+      Tags:
+        - Key: Name
+          Value: basicPhoneNumber
+
   Flow:
     Type: AWS::Connect::ContactFlow
     Properties:
