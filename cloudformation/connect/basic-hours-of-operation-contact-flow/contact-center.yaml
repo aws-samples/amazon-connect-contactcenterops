@@ -3,7 +3,8 @@ Description: >
   Amazon Connect instance CloudFormation template.
   Creates an Amazon Connect Instance, Hours of Operation, Contact Flow.
   Creates an Agent user for calls to be directed to.
-  Password for the Agent is stored as a Secure String in AWS Systems Manager Parameter Store.
+  Creates an Admin user to manage Amazon Connect.
+  Passwords for the Agent and Admin are stored as Secure Strings in AWS Systems Manager Parameter Store.
 
 Parameters:
   Environment:
@@ -776,3 +777,33 @@ Resources:
             }
           ]
         }
+
+  ConnectUserAdmin:
+    Type: AWS::Connect::User
+    Properties:
+      IdentityInfo:
+        FirstName: admin
+        LastName: user
+      PhoneConfig:
+        PhoneType: 'DESK_PHONE'
+        AutoAccept: true
+        DeskPhoneNumber: '+12345678902'
+        AfterContactWorkTimeLimit: 10
+      Username: adminuser
+      InstanceArn: !GetAtt AmazonConnectInstance.Arn
+      RoutingProfileArn: !GetAtt CustomResourceGetRoutingProfile.RoutingProfileArn
+      SecurityProfileArns: [!GetAtt CustomResourceGetSecurityProfileAdmin.SecurityProfileArn]
+      Password: !GetAtt CustomResourceGenerateRandomStringAdmin.RandomString
+
+  CustomResourceGenerateRandomStringAdmin:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionGenerateRandomString.Arn
+      StringLength: 15
+      SecurityProfileName: Admin
+
+  CustomResourceGetSecurityProfileAdmin:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionGetSecurityProfile.Arn
+      SecurityProfileName: Admin
