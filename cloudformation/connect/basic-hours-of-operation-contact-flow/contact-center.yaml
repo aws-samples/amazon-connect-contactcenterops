@@ -22,7 +22,11 @@ Resources:
         InboundCalls: true
         OutboundCalls: false
       IdentityManagementType: CONNECT_MANAGED
-      InstanceAlias: !Join ['-', [!Join ['-', [summit-demo, !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]], !Ref Environment]]
+      InstanceAlias: !Sub
+        - ${prefix}-${randomString}-${environment}
+        - prefix: summit-demo
+          randomString: !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]
+          environment: !Ref Environment
 
   HoursOfOperation:
     Type: AWS::Connect::HoursOfOperation
