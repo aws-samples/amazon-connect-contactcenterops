@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
   Amazon Connect instance CloudFormation template.
-  Creates an Amazon Connect Instance
+  Creates an Amazon Connect Instance, Hours of Operation.
 
 Parameters:
   Environment:
@@ -20,3 +20,47 @@ Resources:
         OutboundCalls: false
       IdentityManagementType: CONNECT_MANAGED
       InstanceAlias: !Join ['-', [!Join ['-', [summit-demo, !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]], !Ref Environment]]
+
+  HoursOfOperation:
+    Type: AWS::Connect::HoursOfOperation
+    Properties:
+      Name: Office Hours
+      Description: Office Hours
+      InstanceArn: !GetAtt AmazonConnectInstance.Arn
+      TimeZone: Asia/Singapore
+      Config:
+        - Day: MONDAY
+          EndTime:
+            Hours: 19
+            Minutes: 0
+          StartTime:
+            Hours: 9
+            Minutes: 30
+        - Day: TUESDAY
+          EndTime:
+            Hours: 19
+            Minutes: 0
+          StartTime:
+            Hours: 9
+            Minutes: 30
+        - Day: WEDNESDAY
+          EndTime:
+            Hours: 19
+            Minutes: 0
+          StartTime:
+            Hours: 9
+            Minutes: 30
+        - Day: THURSDAY
+          EndTime:
+            Hours: 19
+            Minutes: 0
+          StartTime:
+            Hours: 9
+            Minutes: 30
+        - Day: FRIDAY
+          EndTime:
+            Hours: 19
+            Minutes: 0
+          StartTime:
+            Hours: 9
+            Minutes: 30
