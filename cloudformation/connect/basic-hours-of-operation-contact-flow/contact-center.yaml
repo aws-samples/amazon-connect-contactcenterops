@@ -2,6 +2,8 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: >
   Amazon Connect instance CloudFormation template.
   Creates an Amazon Connect Instance, Hours of Operation.
+  Creates an Agent user for calls to be directed to.
+  Password for the Agent is stored as a Secure String in AWS Systems Manager Parameter Store.
 
 Parameters:
   Environment:
@@ -64,3 +66,395 @@ Resources:
           StartTime:
             Hours: 9
             Minutes: 30
+
+  CustomResourceGetSecurityProfileAgent:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionGetSecurityProfile.Arn
+      SecurityProfileName: Agent
+
+  LambdaFunctionGetSecurityProfile:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Permission to write to CloudWatch logs is part of the managed policy AWSLambdaBasicExecutionRole
+          - id: W89
+            reason: Lambda function does not interact with resources in the VPC and does not handle sensitive data
+          - id: W92
+            reason: This lambda function does not require ReservedConcurrentExecutions
+    Properties:
+      Handler: index.lambda_handler
+      Description: >
+        Get Security Profile ID, ARN
+      Role: !GetAtt GetSecurityProfileRole.Arn
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+          INSTANCE_ID: !Ref AmazonConnectInstance
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          import os
+          import cfnresponse
+
+          client = boto3.client('connect')
+
+          LOG_LEVEL = os.getenv('LOG_LEVEL')
+          INSTANCE_ID = os.getenv('INSTANCE_ID')
+
+          def lambda_handler(event, context):
+            global log_level
+            log_level = str(LOG_LEVEL).upper()
+            if log_level not in { 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' }:
+              log_level = 'ERROR'
+            logging.getLogger().setLevel(log_level)
+
+            logging.info(f'Event: {event}')
+
+            request_type = event['RequestType']
+
+            if request_type == 'Delete':
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              return
+
+            if request_type in {'Create', 'Update'}:
+              try:
+                security_profile_name = event['ResourceProperties']['SecurityProfileName']
+
+                marker = None
+
+                while True:
+                  paginator = client.get_paginator('list_security_profiles')
+                  response_iterator = paginator.paginate(
+                    InstanceId=INSTANCE_ID,
+                    PaginationConfig={
+                      'PageSize': 10,
+                      'StartingToken': marker
+                    }
+                  )
+                  for page in response_iterator:
+                    security_profiles = page['SecurityProfileSummaryList']
+                    for security_profile in security_profiles:
+                      if security_profile['Name'] == security_profile_name:
+                        response_data = {
+                          'SecurityProfileId': security_profile['Id'],
+                          'SecurityProfileArn': security_profile['Arn'],
+                        }
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                        return
+                  try:
+                    marker = response_iterator['Marker']
+                  except Exception as e:
+                    logging.error(e)
+                    cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                    break
+              except Exception as e:
+                logging.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                return
+
+  GetSecurityProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: listConnectSecurityProfiles
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - connect:ListSecurityProfiles
+              Resource: !Sub arn:${AWS::Partition}:connect:${AWS::Region}:${AWS::AccountId}:instance*
+              Condition:
+                StringEquals:
+                  connect:InstanceId: !GetAtt AmazonConnectInstance.Id
+
+  CustomResourceGetRoutingProfile:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionGetRoutingProfile.Arn
+      RoutingProfileName: Basic Routing Profile
+
+  LambdaFunctionGetRoutingProfile:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Permission to write to CloudWatch logs is part of the managed policy AWSLambdaBasicExecutionRole
+          - id: W89
+            reason: Lambda function does not interact with resources in the VPC and does not handle sensitive data
+          - id: W92
+            reason: This lambda function does not require ReservedConcurrentExecutions
+    Properties:
+      Handler: index.lambda_handler
+      Description: >
+        Get Routing Profile ID, ARN
+      Role: !GetAtt GetRoutingProfileRole.Arn
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+          INSTANCE_ID: !Ref AmazonConnectInstance
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          import os
+          import cfnresponse
+
+          client = boto3.client('connect')
+
+          LOG_LEVEL = os.getenv('LOG_LEVEL')
+          INSTANCE_ID = os.getenv('INSTANCE_ID')
+
+          def lambda_handler(event, context):
+            global log_level
+            log_level = str(LOG_LEVEL).upper()
+            if log_level not in { 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' }:
+              log_level = 'ERROR'
+            logging.getLogger().setLevel(log_level)
+
+            logging.info(f'Event: {event}')
+
+            request_type = event['RequestType']
+
+            if request_type == 'Delete':
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              return
+
+            if request_type in {'Create', 'Update'}:
+              try:
+                routing_profile_name = event['ResourceProperties']['RoutingProfileName']
+
+                marker = None
+
+                while True:
+                  paginator = client.get_paginator('list_routing_profiles')
+                  response_iterator = paginator.paginate(
+                    InstanceId=INSTANCE_ID,
+                    PaginationConfig={
+                      'PageSize': 10,
+                      'StartingToken': marker
+                    }
+                  )
+                  for page in response_iterator:
+                    routing_profiles = page['RoutingProfileSummaryList']
+                    for routing_profile in routing_profiles:
+                      if routing_profile['Name'] == routing_profile_name:
+                        response_data = {
+                          'RoutingProfileId': routing_profile['Id'],
+                          'RoutingProfileArn': routing_profile['Arn'],
+                        }
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                        return
+                  try:
+                    marker = response_iterator['Marker']
+                  except Exception as e:
+                    logging.error(e)
+                    cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                    break
+              except Exception as e:
+                logging.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                return
+
+  GetRoutingProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: listConnectRoutingProfiles
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - connect:ListRoutingProfiles
+              Resource: !Sub arn:${AWS::Partition}:connect:${AWS::Region}:${AWS::AccountId}:instance*
+              Condition:
+                StringEquals:
+                  connect:InstanceId: !GetAtt AmazonConnectInstance.Id
+
+  CustomResourceGenerateRandomStringAgent:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionGenerateRandomString.Arn
+      StringLength: 15 # Specify minimum 4, max 60
+      SecurityProfileName: Agent
+
+  LambdaFunctionGenerateRandomString:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Permission to write to CloudWatch logs is part of the managed policy AWSLambdaBasicExecutionRole
+          - id: W89
+            reason: Lambda function does not interact with resources in the VPC and does not handle sensitive data
+          - id: W92
+            reason: This lambda function does not require ReservedConcurrentExecutions
+    Properties:
+      Handler: index.lambda_handler
+      Description: >
+        Generate random string
+      Role: !GetAtt GenerateRandomStringRole.Arn
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 3
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      Code:
+        ZipFile: |
+          import boto3
+          import botocore
+          import random
+          import logging
+          import os
+          import cfnresponse
+          import string
+
+          client = boto3.client('ssm')
+
+          LOG_LEVEL = os.getenv('LOG_LEVEL')
+
+          def lambda_handler(event, context):
+            global log_level
+            log_level = str(LOG_LEVEL).upper()
+            if log_level not in { 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' }:
+              log_level = 'ERROR'
+            logging.getLogger().setLevel(log_level)
+
+            logging.info(f'Event: {event}')
+
+            request_type = event['RequestType']
+
+            if request_type == 'Delete':
+              security_profile_name = event['ResourceProperties']['SecurityProfileName']
+              try:
+                response = client.delete_parameter(
+                  Name=f'amazon-connect-temp-{security_profile_name}-password'
+                )
+
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                return
+              except botocore.exceptions.ClientError as err:
+                if err.response['Error']['Code'] == 'ParameterNotFound':
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  return
+                else:
+                  logging.error(err)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {err}'})
+                  return
+              except Exception as e:
+                logging.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                return
+
+            if request_type in {'Create', 'Update'}:
+              try:
+                string_length = event['ResourceProperties']['StringLength']
+                security_profile_name = event['ResourceProperties']['SecurityProfileName']
+
+                valid_characters = string.ascii_letters + string.digits + "!@#$%^&*_=-"
+                # First 4 specifies a mix of from each combination
+                random_string = random.SystemRandom().choice(string.ascii_lowercase)
+                random_string += random.SystemRandom().choice(string.ascii_uppercase)
+                random_string += random.SystemRandom().choice(string.digits)
+                random_string += random.SystemRandom().choice('!@#$%^&*_=-')
+
+                for i in range(int(string_length)-4):
+                  random_string += random.SystemRandom().choice(valid_characters)
+
+                response = client.put_parameter(
+                  Name=f'amazon-connect-temp-{security_profile_name}-password',
+                  Description=f'SSM Parameter to store the temporary Amazon Connect {security_profile_name} Password',
+                  Value=random_string,
+                  Type='SecureString',
+                  Overwrite=True,
+                  Tier='Standard'
+                )
+
+                response_data = {
+                  'RandomString': random_string
+                }
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+              except Exception as e:
+                logging.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                return
+
+  GenerateRandomStringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: putAndDeleteSSMParameters
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - ssm:DeleteParameter
+              - ssm:PutParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter*
+
+  ConnectUserAgent:
+    Type: AWS::Connect::User
+    Properties:
+      IdentityInfo:
+        FirstName: demo
+        LastName: user
+      PhoneConfig:
+        PhoneType: DESK_PHONE
+        AutoAccept: true
+        DeskPhoneNumber: '+12345678902'
+        AfterContactWorkTimeLimit: 10
+      Username: demouser
+      InstanceArn: !GetAtt AmazonConnectInstance.Arn
+      RoutingProfileArn: !GetAtt CustomResourceGetRoutingProfile.RoutingProfileArn
+      SecurityProfileArns: [!GetAtt CustomResourceGetSecurityProfileAgent.SecurityProfileArn]
+      Password: !GetAtt CustomResourceGenerateRandomStringAgent.RandomString
