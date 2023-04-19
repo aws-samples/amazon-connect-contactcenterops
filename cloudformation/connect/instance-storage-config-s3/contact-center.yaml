@@ -5,6 +5,9 @@ Description: >
   Creates an Agent user for calls to be directed to.
   Creates an Admin user to manage Amazon Connect.
   Passwords for the Agent and Admin are stored as Secure Strings in AWS Systems Manager Parameter Store.
+  Creates an instance storage config to pipe chat transcripts to an Amazon S3 Bucket
+  with server-side encryption with customer-provided keys (SSE-C)
+  This Amazon S3 Bucket has access logging configured to another Amazon S3 Bucket.
 
 Parameters:
   Environment:
@@ -677,3 +680,105 @@ Resources:
     Properties:
       ServiceToken: !GetAtt LambdaFunctionGetSecurityProfile.Arn
       SecurityProfileName: Admin
+
+  InstanceStorageConfig:
+    Type: AWS::Connect::InstanceStorageConfig
+    Properties:
+      InstanceArn: !GetAtt AmazonConnectInstance.Arn
+      ResourceType: CHAT_TRANSCRIPTS
+      S3Config:
+        BucketName: !Ref S3BucketForInstanceStorageConfig
+        BucketPrefix: ChatTranscripts
+        EncryptionConfig:
+          EncryptionType: KMS
+          KeyId: !GetAtt KmsKeyForInstanceStorageConfig.Arn
+      StorageType: S3
+
+  S3BucketForInstanceStorageConfig:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: aws:kms
+            KMSMasterKeyID: !GetAtt KmsKeyForInstanceStorageConfig.Arn
+          BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3BucketForAccessLogging
+        LogFilePrefix: access-logs
+
+  S3BucketForInstanceStorageConfigBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3BucketForInstanceStorageConfig
+      PolicyDocument:
+        Statement:
+          - Sid: AllowSSLRequestsOnly
+            Action:
+              - s3:*
+            Effect: Deny
+            Resource:
+              - !GetAtt S3BucketForInstanceStorageConfig.Arn
+              - !Sub ${S3BucketForInstanceStorageConfig.Arn}/*
+            Principal: '*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  KmsKeyForInstanceStorageConfig:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: For S3 Bucket that contains logs from Amazon Connect's Instance Storage Config
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Root Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+
+  S3BucketForAccessLogging:
+    Type: AWS::S3::Bucket
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: This bucket is used for S3 Access Logging for the main instance storage config bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  S3BucketForAccessLoggingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3BucketForAccessLogging
+      PolicyDocument:
+        Statement:
+          - Sid: AllowSSLRequestsOnly
+            Action:
+              - s3:*
+            Effect: Deny
+            Resource:
+              - !GetAtt S3BucketForAccessLogging.Arn
+              - !Sub ${S3BucketForAccessLogging.Arn}/*
+            Principal: '*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
