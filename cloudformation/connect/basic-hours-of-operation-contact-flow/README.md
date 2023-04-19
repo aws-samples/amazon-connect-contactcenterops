@@ -10,13 +10,6 @@ This folder provides templates to deploy an Amazon Connect instance with a sampl
 
     - In this account, ensure that the IAM principal deploying the CloudFormation template has the required permissions to create the resources in the stack.
 
-- As of 17 April 2023, the AWS SDK used with `Python 3.9` runtime is `boto3-1.20.32` (reference: [AWS Lambda: Lambda runtimes](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html)). This does not support the [AssociatePhoneNumberContactFlow API](https://docs.aws.amazon.com/connect/latest/APIReference/API_AssociatePhoneNumberContactFlow.html) that was released in `boto3-1.21.44` (reference: [boto3 changelog](https://github.com/boto/boto3/blob/0f2c0e4470586667f9a34bf114f1eac80ff36519/CHANGELOG.rst#L2494)). Hence, we must use our own Lambda Layers with an SDK version >= 1.21.44. Please refer to the [AWS Lambda: Creating Lambda layers documentation for guidance](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html). Set `python3.9` as a compatible runtime. The following layers are required:
-
-    ![Lambda layers](./assets/lambda-layers.png)
-
-    - [boto3](https://pypi.org/project/boto3/). Name this layer `boto3`.
-    - [cfnresponse](https://pypi.org/project/cfnresponse/). Name this layer `cfnresponse`.
-
 ## Cost of the solution
 
 The resources created could incur costs in your AWS Account. Consider deleting the resources created once your tests are done. Some reference links to calculate the costs are as follows:

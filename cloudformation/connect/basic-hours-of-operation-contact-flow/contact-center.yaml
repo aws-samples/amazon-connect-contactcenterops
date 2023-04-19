@@ -94,7 +94,7 @@ Resources:
       Description: >
         Get Security Profile ID, ARN
       Role: !GetAtt GetSecurityProfileRole.Arn
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 128
       Timeout: 30
       Environment:
@@ -214,7 +214,7 @@ Resources:
       Description: >
         Get Routing Profile ID, ARN
       Role: !GetAtt GetRoutingProfileRole.Arn
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 128
       Timeout: 30
       Environment:
@@ -335,7 +335,7 @@ Resources:
       Description: >
         Generate random string
       Role: !GetAtt GenerateRandomStringRole.Arn
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 128
       Timeout: 3
       Environment:
@@ -496,12 +496,9 @@ Resources:
       Description: >
         Associate phone number to contact flow
       Role: !GetAtt AssociatePhoneNumberToContactFlowRole.Arn
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 128
       Timeout: 30
-      Layers:
-      - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:boto3:1
-      - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:cfnresponse:1
       Environment:
         Variables:
           LOG_LEVEL: INFO
