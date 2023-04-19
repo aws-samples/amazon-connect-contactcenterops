@@ -1,0 +1,406 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Creates an AWS CodeCommit Repository integrated with an AWS CodePipeline pipeline.
+  DevOps pipeline for AWS CloudFormation templates
+  1. Reads contact-center.yaml from CodeCommit
+  2. Creates a CloudFormation stack in an environment named Dev based on the template
+  3. Manual approval step
+  4. Creates a CloudFormation stack in an environment named Prod based on the template
+
+Resources:
+  CodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Sub ${AWS::StackName}-repo
+      RepositoryDescription: DevOps pipeline for Amazon Connect deployments
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: CodePipelineCFNAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:UploadArchive
+                  - codecommit:CancelUploadArchive
+                Resource:
+                  - !GetAtt CodeCommitRepository.Arn
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:CreateUploadBucket
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:UpdateStack
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:ExecuteChangeSet
+                Resource:
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketPolicy
+                Resource:
+                  - !Sub ${ArtifactStoreBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${CloudFormationRole}
+
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: CloudFormation could provision resources with different names and ARNs
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: IAMPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:Get*
+                  - iam:List*
+                  - iam:TagPolicy
+                  - iam:TagRole
+                  - iam:UntagPolicy
+                  - iam:UntagRole
+                  - iam:CreateServiceLinkedRole
+                Resource: "*"
+        - PolicyName: IAMPermissionsScopedToPolicyName
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:CreatePolicy
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/contact-center-*
+        - PolicyName: IAMPermissionsScopedToRoleName
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:AttachRolePolicy
+                  - iam:CreateRole
+                  - iam:DeletePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:DeleteRole
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:PassRole
+                  - iam:UpdateRole
+                  - iam:UpdateRoleDescription
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/contact-center-*
+        - PolicyName: LambdaPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:List*
+                  - lambda:Get*
+                  - lambda:TagResource
+                  - lambda:UntagResource
+                  - lambda:CreateFunction
+                  - lambda:DeleteFunction
+                  - lambda:InvokeFunction
+                  - lambda:UpdateFunctionCode
+                Resource: "*"
+        - PolicyName: SecretsManagerPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:GetRandomPassword
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:DeleteSecret
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:UpdateSecret
+                Resource: "*"
+        - PolicyName: S3Permissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:List*
+                  - s3:GetBucket*
+                  - s3:GetEncryptionConfiguration
+                  - s3:GetIntelligentTieringConfiguration
+                  - s3:GetInventoryConfiguration
+                  - s3:GetLifecycleConfiguration
+                  - s3:GetMetricsConfiguration
+                  - s3:PutBucketTagging
+                  - s3:PutStorageLensConfigurationTagging
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutAnalyticsConfiguration
+                  - s3:PutBucketLogging
+                  - s3:PutBucketNotification
+                  - s3:PutBucketOwnershipControls
+                  - s3:PutBucketVersioning
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutInventoryConfiguration
+                  - s3:PutIntelligentTieringConfiguration
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutMetricsConfiguration
+                  - s3:PutReplicationConfiguration
+                  - s3:PutStorageLensConfiguration
+                  - s3:DeleteAccessPointPolicy
+                  - s3:DeleteAccessPointPolicyForObjectLambda
+                  - s3:DeleteBucketPolicy
+                  - s3:PutAccessPointPolicy
+                  - s3:PutAccessPointPolicyForObjectLambda
+                  - s3:PutAccessPointPublicAccessBlock
+                  - s3:PutBucketAcl
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketPublicAccessBlock
+                Resource: "*"
+        - PolicyName: KMSPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:List*
+                  - kms:Describe*
+                  - kms:Get*
+                  - kms:TagResource
+                  - kms:UntagResource
+                  - kms:CreateAlias
+                  - kms:CreateKey
+                  - kms:DeleteAlias
+                  - kms:DeleteKey
+                  - kms:DisableKey
+                  - kms:EnableKey
+                  - kms:EnableKeyRotation
+                  - kms:GenerateRandom
+                  - kms:PutKeyPolicy
+                  - kms:ScheduleKeyDeletion
+                  - kms:UpdateAlias
+                  - kms:UpdateKeyDescription
+                Resource: "*"
+        # https://docs.aws.amazon.com/connect/latest/adminguide/security-iam-amazon-connect-permissions.html#amazonconnectfullaccesspolicy
+        - PolicyName: ConnectAttachAnyPolicyToAmazonConnectRole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PutRolePolicy
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/connect.amazonaws.com/AWSServiceRoleForAmazonConnect*
+        - PolicyName: ConnectPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - connect:Get*
+                  - connect:List*
+                  - connect:Search*
+                  - connect:Describe*
+                  - connect:TagResource
+                  - connect:UntagResource
+                  - connect:AssociateInstanceStorageConfig
+                  - connect:ClaimPhoneNumber
+                  - connect:CreateContactFlow
+                  - connect:CreateHoursOfOperation
+                  - connect:CreateInstance
+                  - connect:CreateUser
+                  - connect:DeleteContactFlow
+                  - connect:DeleteHoursOfOperation
+                  - connect:DeleteInstance
+                  - connect:DeleteUser
+                  - connect:DisassociateInstanceStorageConfig
+                  - connect:ReleasePhoneNumber
+                  - connect:UpdateContactFlowContent
+                  - connect:UpdateContactFlowMetadata
+                  - connect:UpdateContactFlowModuleContent
+                  - connect:UpdateContactFlowModuleMetadata
+                  - connect:UpdateContactFlowName
+                  - connect:UpdateHoursOfOperation
+                  - connect:UpdateInstanceAttribute
+                  - connect:UpdateInstanceStorageConfig
+                  - connect:UpdateParticipantRoleConfig
+                  - connect:UpdateUserIdentityInfo
+                  - connect:UpdateUserPhoneConfig
+                  - connect:UpdateUserRoutingProfile
+                  - connect:UpdateUserSecurityProfiles
+                  - connect:ReleasePhoneNumber
+                  - ds:AuthorizeApplication
+                  - ds:CheckAlias
+                  - ds:CreateAlias
+                  - ds:CreateDirectory
+                  - ds:CreateIdentityPoolDirectory
+                  - ds:DeleteDirectory
+                  - ds:DescribeDirectories
+                  - ds:UnauthorizeApplication
+                  - kms:CreateGrant
+                  - kms:DescribeKey
+                  - kms:ListAliases
+                  - kms:RetireGrant
+                  - logs:CreateLogGroup
+                  - s3:CreateBucket
+                  - s3:GetBucketLocation
+                  - s3:ListAllMyBuckets
+                  - servicequotas:GetServiceQuota
+                  - profile:ListAccountIntegrations
+                  - profile:GetDomain
+                  - profile:ListDomains
+                  - profile:GetProfileObjectType
+                  - profile:ListProfileObjectTypeTemplates
+                Resource: "*"
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStoreBucket
+      Name: !Sub ${AWS::StackName}-pipeline
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      Stages:
+        - Name: CodeCommit-Source
+          Actions:
+            - Name: CloudFormation-Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: SourceArtifact
+              Configuration:
+                BranchName: main
+                RepositoryName: !GetAtt CodeCommitRepository.Name
+              RunOrder: 1
+        - Name: Deploy-Dev
+          Actions:
+            - Name: CloudFormation-Deploy
+              InputArtifacts:
+                - Name: SourceArtifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt CloudFormationRole.Arn
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: contact-center-dev
+                # As an alternative to ParameterOverrides, you can pass pipeline params using TemplateConfiguration
+                # TemplateConfiguration: SourceArtifact::config-dev.json
+                TemplatePath: SourceArtifact::contact-center.yaml
+                ParameterOverrides: |
+                  {
+                    "Environment" : "dev"
+                  }
+              RunOrder: 1
+        - Name: Approval
+          Actions:
+            - Name: Approval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: 1
+                Provider: Manual
+              Configuration:
+                # Optional: configure notifications for the approval ste
+                # NotificationArn: !Ref SNSTopic
+                CustomData: Approve once UAT has been completed.
+              RunOrder: 1
+        - Name: Deploy-Prod
+          Actions:
+            - Name: CloudFormation-Deploy
+              InputArtifacts:
+                - Name: SourceArtifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt CloudFormationRole.Arn
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: contact-center-prod
+                # As an alternative to ParameterOverrides, you can pass pipeline params using TemplateConfiguration
+                # TemplateConfiguration: SourceArtifact::config-prod.json
+                TemplatePath: SourceArtifact::contact-center.yaml
+                ParameterOverrides: |
+                  {
+                    "Environment" : "prod"
+                  }
+              RunOrder: 1
+
+  ArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: S3 Access Logging is not required since no sensitive data is put into the S3 bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+
+  ArtifactStoreBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactStoreBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowSSLRequestsOnly
+            Action:
+              - s3:*
+            Effect: Deny
+            Resource:
+              - !GetAtt ArtifactStoreBucket.Arn
+              - !Sub ${ArtifactStoreBucket.Arn}/*
+            Principal: '*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
