@@ -93,7 +93,7 @@ aws cloudformation deploy \
 
     ![CloudFormation console](./assets/first-deployment/09-cloudformation-console.png)
 
-9. You may follow the testing steps [here](../../connect/basic-hours-of-operation-contact-flow/README.md#testing-the-solution1) to validate the deployment.
+9. You may follow the testing steps [here](../../connect/basic-hours-of-operation-contact-flow/README.md#testing-the-first-iteration) to validate the deployment.
 
 10. If the deployment is valid, head back to the `Approval` step and choose `Review`
 
@@ -115,7 +115,74 @@ aws cloudformation deploy \
 
     ![CloudFormation console](./assets/first-deployment/13-cloudformation-console.png)
 
-15. You may follow the testing steps [here](../../connect/basic-hours-of-operation-contact-flow/README.md#testing-the-solution1) to validate the deployment.
+15. You may follow the testing steps [here](../../connect/basic-hours-of-operation-contact-flow/README.md#testing-the-first-iteration) to validate the deployment.
+
+#### Second deployment
+
+1. Navigate to the CodeCommit console and select `contact-center-ops-repo`.
+
+    ![Choose the created CodeCommit repository](./assets/second-deployment/01-codecommit-repo.png)
+
+2. Select `contact-center.yaml`.
+
+    ![select file](./assets/second-deployment/02-select-file.png)
+
+3. Choose `Edit`
+
+    ![Edit](./assets/second-deployment/03-edit-file.png)
+
+4. A template that you may use can be found [here](../../connect/basic-hours-of-operation-contact-flow/contact-center-update.yaml). This template updates the hours of operation and contact flow fro the first deployment. Copy the template and paste it here. Please refer to the [documentation](../../connect/basic-hours-of-operation-contact-flow/README.md#cost-of-the-solution) to understand the potential costs associated with deploying this template.
+
+    ![paste CloudFormation contents](./assets/second-deployment/04-paste-cloudformation.png)
+
+4. Scroll down and enter the following and then choose `Commit changes`:
+
+    ![Commit changes](./assets/second-deployment/05-commit-changes.png)
+
+    - `File name`: `contact-center.yaml`
+    - `Author name`: `<replace with your name>`
+    - `Email address`: `<replace with your email address>`
+    - `Commit message`: `second iteration of contact center`
+
+5. Navigate to the CodePipeline console and verify that the pipeline, `contact-center-ops-pipeline` is `In progress`. If you do not see this, you may have to wait a few minutes.
+
+    ![CodePipeline console](./assets/second-deployment/06-codepipeline-console.png)
+
+6. Select `contact-center-ops-pipeline` and verify that the pipeline is now at the `Deploy-Dev` step which is deploying to our dev environment.
+
+    ![CodePipeline deploy to dev](./assets/second-deployment/07-codepipeline-steps.png)
+
+7. Once the deployment to dev has `Succeeded`, the pipeline pauses at the `Approval` step.
+
+    ![CodePipeline pause at Approval step](./assets/second-deployment/08-codepipeline-approval.png)
+
+8. Navigate to the CloudFormation console to verify that the stack has `contact-center-dev` has been updated, with `Status` `UPDATE_COMPLETE`.
+
+    ![CloudFormation console](./assets/second-deployment/09-cloudformation-console.png)
+
+9. You may follow the testing steps [here](../../connect/basic-hours-of-operation-contact-flow/README.md#testing-the-second-iteration) to validate the deployment.
+
+10. If the deployment is valid, head back to the `Approval` step and choose `Review`
+
+    ![Review approval step](./assets/second-deployment/08-codepipeline-approval.png)
+
+11. Enter some comments to approve the step.
+
+    ![Enter approval comments](./assets/second-deployment/10-enter-comments.png)
+
+12. After approval, the step transitions to `Deploy-Prod` which deploys the CloudFormation template to the production environment.
+
+    ![CodePipeline deploy to prod](./assets/second-deployment/11-codepipeline-deploy-to-prod.png)
+
+13. After a few minutes, verify that the deployment says `Succeeded`.
+
+    ![CodePipeline deploy to prod Succeeded](./assets/second-deployment/12-codepipeline-prod-succeeded.png)
+
+14. Navigate to the CloudFormation console to verify that the stack has `contact-center-prod` has been updated, with `Status` `UPDATE_COMPLETE`.
+
+    ![CloudFormation console](./assets/second-deployment/13-cloudformation-console.png)
+
+15. You may follow the testing steps [here](../../connect/basic-hours-of-operation-contact-flow/README.md#testing-the-second-iteration) to validate the deployment.
 
 ## Clean up
 

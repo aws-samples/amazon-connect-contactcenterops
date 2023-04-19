@@ -59,7 +59,7 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_IAM
 ```
 
-### Testing the solution
+### Testing the first iteration
 
 1. Retrieve the Admin credentials from Systems Manager Parameter Store. Choose `amazon-connect-temp-Admin-password`
 
@@ -120,7 +120,7 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_IAM
 ```
 
-### Testing the solution
+### Testing the second iteration
 
 1. Retrieve the Admin credentials from Systems Manager Parameter Store. Choose `amazon-connect-temp-Admin-password`
 
