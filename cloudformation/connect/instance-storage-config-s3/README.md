@@ -157,7 +157,6 @@ In addition, don't forget to delete the following artifacts too:
   * `/aws/lambda/amazon-connect-demo-LambdaFunctionGetRoutingProfil-1234567890ab`
   * `/aws/lambda/amazon-connect-demo-LambdaFunctionGetSecurityProfil-1234567890ab`
   * `/aws/lambda/amazon-connect-demo-LambdaFunctionGenerateRandomSt-1234567890ab`
-  * `/aws/lambda/amazon-connect-demo-LambdaFunctionAssociatePhoneNu-1234567890ab`
 
 ## Security
 
