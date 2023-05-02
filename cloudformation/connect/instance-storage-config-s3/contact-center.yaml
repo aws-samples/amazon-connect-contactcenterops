@@ -757,7 +757,6 @@ Resources:
           - id: W35
             reason: This bucket is used for S3 Access Logging for the main instance storage config bucket
     Properties:
-      AccessControl: LogDeliveryWrite
       BucketEncryption:
         ServerSideEncryptionConfiguration:
         - ServerSideEncryptionByDefault:
@@ -785,3 +784,15 @@ Resources:
             Condition:
               Bool:
                 aws:SecureTransport: false
+          - Sid: PutObjectFromSourceBucket
+            Action:
+              - s3:PutObject
+            Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Resource: !Sub ${S3BucketForAccessLogging.Arn}/*
+            Condition:
+              ArnLike:
+                aws:SourceArn: !GetAtt S3BucketForInstanceStorageConfig.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
