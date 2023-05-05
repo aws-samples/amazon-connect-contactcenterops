@@ -720,7 +720,6 @@ Resources:
               Condition:
                 StringEquals:
                   connect:InstanceId: !GetAtt AmazonConnectInstance.Id
-                  
 
   Flow:
     Type: AWS::Connect::ContactFlow
