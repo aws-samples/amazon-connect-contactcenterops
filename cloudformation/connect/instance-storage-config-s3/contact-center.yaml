@@ -198,7 +198,7 @@ Resources:
                 StringEquals:
                   connect:InstanceId: !GetAtt AmazonConnectInstance.Id
 
-  CustomResourceGetRoutingProfile:
+  CustomResourceGetRoutingProfileBasic:
     Type: Custom::S3CustomResource
     Properties:
       ServiceToken: !GetAtt LambdaFunctionGetRoutingProfile.Arn
@@ -466,10 +466,133 @@ Resources:
         AfterContactWorkTimeLimit: 10
       Username: demouser
       InstanceArn: !GetAtt AmazonConnectInstance.Arn
-      RoutingProfileArn: !GetAtt CustomResourceGetRoutingProfile.RoutingProfileArn
+      RoutingProfileArn: !GetAtt CustomResourceGetRoutingProfileBasic.RoutingProfileArn
       SecurityProfileArns: [!GetAtt CustomResourceGetSecurityProfileAgent.SecurityProfileArn]
       Password: !GetAtt CustomResourceGenerateRandomStringAgent.RandomString
 
+  CustomResourceGetContactFlowCustomerQueue:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionGetContactFlow.Arn
+      ContactFlowName: Default customer queue
+      ContactFlowTypes: [CUSTOMER_QUEUE]
+
+  LambdaFunctionGetContactFlow:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Permission to write to CloudWatch logs is part of the managed policy AWSLambdaBasicExecutionRole
+          - id: W89
+            reason: Lambda function does not interact with resources in the VPC and does not handle sensitive data
+          - id: W92
+            reason: This lambda function does not require ReservedConcurrentExecutions
+    Properties:
+      Handler: index.lambda_handler
+      Description: >
+        Get Contact Flow ID, ARN
+      Role: !GetAtt GetContactFlowRole.Arn
+      Runtime: python3.10
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+          INSTANCE_ID: !Ref AmazonConnectInstance
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          import os
+          import cfnresponse
+
+          client = boto3.client('connect')
+
+          LOG_LEVEL = os.getenv('LOG_LEVEL')
+          INSTANCE_ID = os.getenv('INSTANCE_ID')
+
+          def lambda_handler(event, context):
+            global log_level
+            log_level = str(LOG_LEVEL).upper()
+            if log_level not in { 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL' }:
+              log_level = 'ERROR'
+            logging.getLogger().setLevel(log_level)
+
+            logging.info(f'Event: {event}')
+
+            request_type = event['RequestType']
+
+            if request_type == 'Delete':
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              return
+
+            if request_type in {'Create', 'Update'}:
+              try:
+                contact_flow_name = event['ResourceProperties']['ContactFlowName']
+                contact_flow_types = event['ResourceProperties']['ContactFlowTypes']
+                
+                marker = None
+
+                while True:
+                  paginator = client.get_paginator('list_contact_flows')
+                  response_iterator = paginator.paginate(
+                    InstanceId=INSTANCE_ID,
+                    ContactFlowTypes=contact_flow_types,
+                    PaginationConfig={
+                      'PageSize': 10,
+                      'StartingToken': marker
+                    }
+                  )
+                  for page in response_iterator:
+                    contact_flows = page['ContactFlowSummaryList']
+                    for contact_flow in contact_flows:
+                      if contact_flow['Name'] == contact_flow_name:
+                        response_data = {
+                          'ContactFlowId': contact_flow['Id'],
+                          'ContactFlowArn': contact_flow['Arn'],
+                        }
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                        return
+                  try:
+                    marker = response_iterator['Marker']
+                  except Exception as e:
+                    logging.error(e)
+                    cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                    break
+              except Exception as e:
+                logging.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {'message': f'ERROR: {e}'})
+                return
+
+  GetContactFlowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: listConnectContactFlows
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - connect:ListContactFlows
+              Resource: !Sub arn:${AWS::Partition}:connect:${AWS::Region}:${AWS::AccountId}:instance*
+              Condition:
+                StringEquals:
+                  connect:InstanceId: !GetAtt AmazonConnectInstance.Id
+                  
   Flow:
     Type: AWS::Connect::ContactFlow
     Properties:
@@ -483,20 +606,20 @@ Resources:
           "StartAction": "8a1b1f06-0b60-40a7-9cee-77b1b8a93634",
           "Metadata": {
             "entryPointPosition": {
-              "x": -158.4,
-              "y": 99.2
+              "x": -408,
+              "y": 171.2
             },
             "ActionMetadata": {
               "6737f241-656c-4ab9-b5ce-781ca4ea7d58": {
                 "position": {
-                  "x": 208.8,
-                  "y": 351.20000000000005
+                  "x": -23.2,
+                  "y": 548
                 }
               },
               "8a1b1f06-0b60-40a7-9cee-77b1b8a93634": {
                 "position": {
-                  "x": -37.6,
-                  "y": 214.4
+                  "x": -285.6,
+                  "y": 179.2
                 },
                 "parameters": {
                   "HoursOfOperationId": {
@@ -510,26 +633,26 @@ Resources:
               },
               "eb8dce1a-15ee-4c37-a795-d812ca64e70c": {
                 "position": {
-                  "x": 919.2,
-                  "y": 237.60000000000002
+                  "x": 944,
+                  "y": 336
                 }
               },
               "5ea8ece2-ad30-43c7-a758-64ae2bd33dfc": {
                 "position": {
-                  "x": 215.20000000000002,
-                  "y": 116
+                  "x": 8.8,
+                  "y": 194.4
                 }
               },
               "06d0e1d7-5c1b-41ae-b401-052ed7283f97": {
                 "position": {
-                  "x": 673.6,
-                  "y": 115.2
+                  "x": 738.4,
+                  "y": 271.2
                 }
               },
               "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae": {
                 "position": {
-                  "x": 441.6,
-                  "y": 115.2
+                  "x": 500,
+                  "y": 189.6
                 },
                 "parameters": {
                   "AgentId": {
@@ -539,6 +662,24 @@ Resources:
                 "queue": {
                   "text": "demouser (demo user)"
                 }
+              },
+              "8f95c6f4-4ef8-4503-a332-a012d9ae0b0b": {
+                "position": {
+                  "x": 733.6,
+                  "y": 38.4
+                },
+                "parameters": {
+                  "EventHooks": {
+                    "CustomerQueue": {
+                      "displayName": "Default customer queue"
+                    }
+                  }
+                },
+                "contactFlow": {
+                  "text": "Default customer queue",
+                  "id": "${CustomResourceGetContactFlowCustomerQueue.ContactFlowArn}"
+                },
+                "customerOrAgent": true
               }
             }
           },
@@ -642,6 +783,24 @@ Resources:
               "Identifier": "6d7fd93b-430b-4406-9cfc-ec9e329ec8ae",
               "Type": "UpdateContactTargetQueue",
               "Transitions": {
+                "NextAction": "8f95c6f4-4ef8-4503-a332-a012d9ae0b0b",
+                "Errors": [
+                  {
+                    "NextAction": "8f95c6f4-4ef8-4503-a332-a012d9ae0b0b",
+                    "ErrorType": "NoMatchingError"
+                  }
+                ]
+              }
+            },
+            {
+              "Parameters": {
+                "EventHooks": {
+                  "CustomerQueue": "${CustomResourceGetContactFlowCustomerQueue.ContactFlowArn}"
+                }
+              },
+              "Identifier": "8f95c6f4-4ef8-4503-a332-a012d9ae0b0b",
+              "Type": "UpdateContactEventHooks",
+              "Transitions": {
                 "NextAction": "06d0e1d7-5c1b-41ae-b401-052ed7283f97",
                 "Errors": [
                   {
@@ -667,7 +826,7 @@ Resources:
         AfterContactWorkTimeLimit: 10
       Username: adminuser
       InstanceArn: !GetAtt AmazonConnectInstance.Arn
-      RoutingProfileArn: !GetAtt CustomResourceGetRoutingProfile.RoutingProfileArn
+      RoutingProfileArn: !GetAtt CustomResourceGetRoutingProfileBasic.RoutingProfileArn
       SecurityProfileArns: [!GetAtt CustomResourceGetSecurityProfileAdmin.SecurityProfileArn]
       Password: !GetAtt CustomResourceGenerateRandomStringAdmin.RandomString
 
