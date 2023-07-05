@@ -8,7 +8,7 @@ In this repository, we show how we can use Infrastructure as CVode (Iac) to defi
 
 ## References
 
-1. [AWS Summit ASEAN Track 6 - Public Sector: Rethinking Contact Centre operations in the cloud](https://aws.amazon.com/events/summits/asean/agenda/?aws-summit-asean.sort-by=item.additionalFields.ranking&aws-summit-asean.sort-order=asc&awsf.aws-summit-asean-track=breakout-track%23public-sector&awsf.aws-summit-asean-level=*all&awsf.aws-summit-asean-topic=*all&awsf.aws-summit-asean-industry=*all&awsf.aws-summit-asean-audience=*all)
+1. [AWS Summit ASEAN Track 6 - Public Sector: Rethinking Contact Centre operations in the cloud](https://asean-resources.awscloud.com/aws-summit-asean-2023-public-sector/rethinking-contact-centre-operations-in-the-cloud)
 
 ## Security
 
